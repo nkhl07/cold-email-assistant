@@ -1,52 +1,62 @@
-'use client';
+﻿'use client';
 
 import React, { FormEvent, useState } from 'react';
 
 const HomePage: React.FC = () => {
   const [urls, setUrls] = useState('');
-  const [studentProfile, setStudentProfile] = useState('');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [goal, setGoal] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent) {
-    event.preventDefault(); // don't reload the page
-  
+    event.preventDefault();
+
+    // Validation
+    if (!pdfFile) {
+      setError('Please upload your resume/CV as a PDF');
+      return;
+    }
+
+    // File size validation (5MB limit)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (pdfFile.size > MAX_FILE_SIZE) {
+      setError('PDF file size must be under 5MB');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setGeneratedEmail('');
-  
+
     try {
-      // Turn the textarea into an array of URLs
       const urlList = urls
         .split('\n')
         .map((u: string) => u.trim())
         .filter((u: string) => Boolean(u) && u.length > 0)
-        .map((u: string) => u.startsWith('http://') || u.startsWith('https://') ? u : `https://${u}`);
-  
-      // Call our TypeScript backend route
+        .map((u: string) =>
+          u.startsWith('http://') || u.startsWith('https://') ? u : `https://${u}`,
+        );
+
+      // Create FormData instead of JSON
+      const formData = new FormData();
+      formData.append('pdf', pdfFile);
+      formData.append('urls', JSON.stringify(urlList));
+      formData.append('goal', goal);
+
       const res = await fetch('/api/generate-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          urls: urlList,
-          studentProfile,
-          goal,
-        }),
+        body: formData,
       });
-  
-      // If backend responded with an error status, throw
+
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         const msg = data && data.error ? data.error : 'Request failed';
         throw new Error(msg);
       }
-  
-      // Parse the JSON { email: "..." }
+
       const data: { email: string } = await res.json();
-  
-      // Put the email into state so it shows up in the textarea
       setGeneratedEmail(data.email);
     } catch (err: any) {
       setError(err.message ?? 'Something went wrong');
@@ -54,80 +64,125 @@ const HomePage: React.FC = () => {
       setLoading(false);
     }
   }
-  
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
-      <div style={{ maxWidth: 800, width: '100%', padding: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem' }}>
-          Personalized Cold Email Generator
-        </h1>
+    <main className="page">
+      <div className="page__glow page__glow--one" />
+      <div className="page__glow page__glow--two" />
 
-        <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
-          <div>
-            <label style={{ fontWeight: 600 }}>Profile URLs (one per line)</label>
-            <textarea
-              value={urls}
-              onChange={(e) => setUrls(e.target.value)}
-              rows={3}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-              placeholder={`https://cs.vt.edu/people/professor-page\nhttps://www.linkedin.com/in/...`}
-            />
+      <div className="shell">
+        <header className="nav">
+          <div className="brand">
+            <div className="brand__mark">CE</div>
+            <div>
+              <p className="brand__title">Emaily</p>
+            </div>
+          </div>
+          <span className="pill pill--accent">Beta</span>
+        </header>
+
+        <section className="hero">
+          <div className="hero__copy">
+            <p className="eyebrow">Outreach like never before for students & researchers</p>
+            <h1 className="hero__title">
+              Write cold emails faster with the context that matters.
+            </h1>
+            <p className="hero__lede">
+              Paste profile links, your background, and the goal of the conversation. We stitch it
+              together into a crisp, human email that actually gets a reply.
+            </p>
+            <div className="pill-row">
+              <span className="pill">Research outreach</span>
+              <span className="pill">Coffee chats</span>
+              <span className="pill">Internship intros</span>
+            </div>
           </div>
 
-          <div>
-            <label style={{ fontWeight: 600 }}>Your background</label>
-            <textarea
-              value={studentProfile}
-              onChange={(e) => setStudentProfile(e.target.value)}
-              rows={3}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-              placeholder="I'm a first-year CMDA student at Virginia Tech interested in..."
-            />
+          <div className="card">
+            <div className="card__header">
+              <div>
+                <p className="card__eyebrow">Your workspace</p>
+                <p className="card__title">Shape the context</p>
+              </div>
+              <span className="pill pill--subtle">{loading ? 'Working...' : 'Ready'}</span>
+            </div>
+
+            <form onSubmit={handleSubmit} className="form">
+              <div className="field">
+                <label className="field__label">Profile URLs (one per line)</label>
+                <textarea
+                  value={urls}
+                  onChange={(e) => setUrls(e.target.value)}
+                  rows={3}
+                  className="input input--textarea"
+                  placeholder={`Paste a Website, LinkedIn, or Google Scholar profile URL here`}
+                />
+              </div>
+
+              <div className="field">
+                <label className="field__label">Resume/CV (PDF only)</label>
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file && file.type === 'application/pdf') {
+                      setPdfFile(file);
+                      setError(null);
+                    } else if (file) {
+                      setError('Please upload a PDF file only');
+                      e.target.value = '';
+                      setPdfFile(null);
+                    }
+                  }}
+                  className="input input--file"
+                />
+                {pdfFile && (
+                  <span className="file-info">
+                    Selected: {pdfFile.name} ({(pdfFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                )}
+              </div>
+
+              <div className="field">
+                <label className="field__label">Goal of the email</label>
+                <textarea
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  rows={2}
+                  className="input input--textarea"
+                  placeholder="Ask about potential internship opportunities for Summer 2026..."
+                />
+              </div>
+
+              <div className="actions">
+                {error && <span className="error">Error: {error}</span>}
+                <button type="submit" disabled={loading} className="button">
+                  {loading ? 'Generating...' : 'Generate email'}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <div>
-            <label style={{ fontWeight: 600 }}>Goal of the email</label>
-            <textarea
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              rows={2}
-              style={{ width: '100%', padding: '0.5rem', marginTop: '0.25rem' }}
-              placeholder="Ask about potential research opportunities for Summer 2026..."
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: '0.5rem 1rem',
-              fontWeight: 600,
-              cursor: loading ? 'default' : 'pointer',
-            }}
-          >
-            {loading ? 'Generating...' : 'Generate Email'}
-          </button>
-        </form>
-
-        {error && (
-          <p style={{ color: 'red', marginTop: '1rem' }}>
-            Error: {error}
-          </p>
-        )}
+        </section>
 
         {generatedEmail && (
-          <div style={{ marginTop: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-              Generated Email
-            </h2>
-            <textarea
-              value={generatedEmail}
-              onChange={(e) => setGeneratedEmail(e.target.value)}
-              rows={10}
-              style={{ width: '100%', padding: '0.5rem' }}
-            />
-          </div>
+          <section className="output">
+            <div className="card">
+              <div className="card__header">
+                <div>
+                  <p className="card__eyebrow">Output</p>
+                  <p className="card__title">Crafted email</p>
+                </div>
+                <span className="pill pill--accent">Polished draft</span>
+              </div>
+              <textarea
+                value={generatedEmail}
+                onChange={(e) => setGeneratedEmail(e.target.value)}
+                rows={12}
+                className="input input--textarea output__textarea"
+              />
+            </div>
+          </section>
         )}
       </div>
     </main>
