@@ -113,9 +113,12 @@ const HomePage: React.FC = () => {
                 <textarea
                   value={urls}
                   onChange={(e) => setUrls(e.target.value)}
-                  rows={3}
+                  rows={5}
                   className="input input--textarea"
-                  placeholder={`Paste a Website, LinkedIn, or Google Scholar profile URL here`}
+                  placeholder={`https://example.com/profile
+https://linkedin.com/in/username
+https://scholar.google.com/citations?user=...
+(Paste multiple URLs, one per line)`}
                 />
               </div>
 

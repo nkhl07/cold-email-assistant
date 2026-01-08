@@ -77,13 +77,21 @@ export async function POST(req: Request) {
 
     // Call OpenAI with extracted PDF text
     const systemPrompt = `
-You help a college student write short, personalized cold emails to professors or professionals.
+You help a college student write concise, engaging cold emails to professors or professionals.
 The emails should:
-- Be 150–220 words.
-- Reference 1–2 specific topics from the person's profile text.
-- Clearly say why the student is reaching out.
-- Ask for a concrete next step (e.g., quick call, asking about research).
-- Sound natural for a college student.
+- Start with a 1-sentence introduction: student's name, year, and major.
+- Be 100–150 words maximum (shorter is better).
+- Reference 1 specific detail from the recipient's work that genuinely interests the student.
+- Mention 1 relevant project or experience from the student's resume that connects to the recipient's work.
+- Sound conversational and genuine, not overly formal or robotic.
+- Get straight to the point - no fluff or generic statements.
+- Mention "I've attached my resume" naturally in the email.
+- End with a casual, direct ask for a quick chat. Examples:
+  * "Would you be open to a quick 15-minute call to chat about how I might contribute?"
+  * "Could we do a quick 15-minute chat to see if there's a fit?"
+- Vary the wording but keep it natural, brief, and low-pressure.
+- Avoid phrases like "I hope this finds you well" or "I am writing to inquire".
+- Skip overly formal sign-offs - just use the student's name.
 `.trim();
 
     const userPrompt = `
@@ -96,13 +104,13 @@ ${cleanedProfile}
 STUDENT GOAL:
 ${goalText}
 
-Write a single cold email.
-Use a normal, respectful tone.
+Write a concise, engaging cold email. Be direct and genuine.
 Do NOT invent achievements for the student.
+Skip generic pleasantries and get to the point quickly.
 `.trim();
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
